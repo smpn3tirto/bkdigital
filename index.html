@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>BK Digital — Sistem Bimbingan Konseling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#2F6F63">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ SPLASH SCREEN (logo sekolah; tampil saat dibuka dari ikon aplikasi) ============ -->
+<div id="appSplash" class="app-splash">
+  <img id="appSplashLogo" src="icons/icon-192.png" alt="" />
+  <h2 id="appSplashName">BK Digital</h2>
+  <div class="spinner"></div>
+</div>
+<script>
+(function(){
+  var sa = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  var sp = document.getElementById('appSplash');
+  if (!sa){ sp.remove(); return; }
+  try{
+    var l = localStorage.getItem('bk_school_logo'), n = localStorage.getItem('bk_school_name');
+    if (l) document.getElementById('appSplashLogo').src = l;
+    if (n) document.getElementById('appSplashName').textContent = n;
+  }catch(e){}
+})();
+</script>
+
+<!-- ============ SPLASH / LOGIN ============ -->
+<div id="setupScreen" class="setup-screen">
+
+  <!-- Login Admin/Guru BK: perlu URL Web App + ACCESS_TOKEN rahasia -->
+  <div class="setup-card" id="adminSetupCard">
+    <h1>BK Digital</h1>
+    <p class="setup-sub">Sistem Bimbingan &amp; Konseling Sekolah</p>
+    <label class="setup-label">Tempel URL Web App Google Apps Script</label>
+    <input id="apiUrlInput" type="url" placeholder="https://script.google.com/macros/s/xxxxx/exec" />
+    <label class="setup-label">Token / Kata Sandi Akses</label>
+    <input id="apiTokenInput" type="password" placeholder="Sesuai ACCESS_TOKEN di Script Properties" />
+    <button id="apiUrlSave" class="btn btn-primary btn-block"><i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk sebagai Admin/Guru BK</button>
+    <p class="setup-note">URL &amp; token ini hanya disimpan di browser kamu (localStorage), tidak dikirim ke mana-mana kecuali ke Web App Google Apps Script milikmu sendiri. Lihat README untuk cara membuatnya.</p>
+    <button type="button" class="btn btn-ghost btn-block pwa-install-btn hidden"><i class="fa-solid fa-download"></i> Pasang Aplikasi di Perangkat</button>
+    <a href="#" id="showGuruLoginLink" class="setup-switch-link">Login sebagai Guru Mapel →</a>
+    <a href="#" id="showKonselorLoginLink" class="setup-switch-link">Login sebagai Guru BK (Konselor) →</a>
+  </div>
+
+  <!-- Login Guru Mapel: cukup Username & Password, tanpa URL/token sama sekali -->
+  <div class="setup-card hidden" id="guruLoginCard">
+    <h1>BK Digital</h1>
+    <p class="setup-sub">Login Guru Mapel</p>
+    <label class="setup-label">Username</label>
+    <input id="guruUsernameInput" type="text" autocomplete="username" placeholder="Username dari Guru BK" />
+    <label class="setup-label">Password</label>
+    <input id="guruPasswordInput" type="password" autocomplete="current-password" placeholder="Password dari Guru BK" />
+    <button id="guruLoginBtn" class="btn btn-primary btn-block"><i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk</button>
+    <p class="setup-note" id="guruLoginNote">Belum punya akun? Hubungi Guru BK di sekolahmu untuk didaftarkan.</p>
+    <a href="#" id="showKonselorLoginFromGuruLink" class="setup-switch-link">Login sebagai Guru BK (Konselor) →</a>
+    <a href="#" id="showAdminLoginLink" class="setup-switch-link">← Masuk sebagai Admin/Guru BK</a>
+  </div>
+
+  <!-- Login Konselor (Guru BK per-kelas): Username & Password/PIN, hanya
+       melihat/mencatat menu Konseling untuk kelas tanggung jawabnya -->
+  <div class="setup-card hidden" id="konselorLoginCard">
+    <h1>BK Digital</h1>
+    <p class="setup-sub">Login Guru BK (Konselor)</p>
+    <label class="setup-label">Username</label>
+    <input id="konselorUsernameInput" type="text" autocomplete="username" placeholder="Username dari Admin/Guru BK" />
+    <label class="setup-label">Password / PIN</label>
+    <input id="konselorPasswordInput" type="password" autocomplete="current-password" placeholder="Password atau PIN dari Admin/Guru BK" />
+    <button id="konselorLoginBtn" class="btn btn-primary btn-block"><i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk</button>
+    <p class="setup-note">Setelah masuk, kamu hanya bisa melihat &amp; mencatat Konseling untuk siswa di kelas yang menjadi tanggung jawabmu. Belum punya akun? Hubungi Admin/Guru BK di sekolahmu.</p>
+    <a href="#" id="showGuruLoginFromKonselorLink" class="setup-switch-link">← Login sebagai Guru Mapel</a>
+    <a href="#" id="showAdminLoginLink2" class="setup-switch-link">← Masuk sebagai Admin/Guru BK</a>
+  </div>
+
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app" class="app hidden">
+
+  <!-- ---------- SIDEBAR (desktop) ---------- -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-text">BK Digital</span>
+    </div>
+    <nav class="nav">
+      <a href="#dashboard" class="nav-item active" data-page="dashboard"><i class="fa-solid fa-chart-simple"></i><span>Dashboard</span></a>
+      <a href="#siswa" class="nav-item" data-page="siswa"><i class="fa-solid fa-user-graduate"></i><span>Data Siswa</span></a>
+      <a href="#absensi" class="nav-item" data-page="absensi"><i class="fa-solid fa-calendar-check"></i><span>Absensi</span></a>
+      <a href="#pelanggaran" class="nav-item" data-page="pelanggaran"><i class="fa-solid fa-triangle-exclamation"></i><span>Pelanggaran</span></a>
+      <a href="#konseling" class="nav-item" data-page="konseling"><i class="fa-solid fa-comments"></i><span>Konseling</span></a>
+      <a href="#kolaborasi" class="nav-item" data-page="kolaborasi"><i class="fa-solid fa-people-arrows"></i><span>Kolaborasi</span></a>
+      <a href="#laporan" class="nav-item" data-page="laporan"><i class="fa-solid fa-file-pdf"></i><span>Laporan</span></a>
+      <a href="#kenaikan" class="nav-item" data-page="kenaikan"><i class="fa-solid fa-arrow-up-right-dots"></i><span>Kenaikan &amp; Kelulusan</span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <button id="guruAccountsBtn" class="nav-item nav-item--ghost"><i class="fa-solid fa-users-gear"></i><span>Akun Guru Mapel</span></button>
+      <button id="konselorAccountsBtn" class="nav-item nav-item--ghost"><i class="fa-solid fa-user-shield"></i><span>Akun Guru BK (Konselor)</span></button>
+      <button class="nav-item nav-item--ghost pwa-install-btn hidden" type="button"><i class="fa-solid fa-download"></i><span>Pasang Aplikasi</span></button>
+      <button id="settingsBtn" class="nav-item nav-item--ghost"><i class="fa-solid fa-gear"></i><span>Pengaturan</span></button>
+      <button id="logoutBtn" class="nav-item nav-item--ghost hidden"><i class="fa-solid fa-right-from-bracket"></i><span>Keluar</span></button>
+    </div>
+  </aside>
+
+  <!-- ---------- MAIN ---------- -->
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn hamburger" id="hamburgerBtn" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+      <h1 id="pageTitle">Dashboard</h1>
+      <span id="guruBadge" class="guru-badge hidden"></span>
+      <div class="topbar-right">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="globalSearch" type="text" placeholder="Cari siswa, absensi, laporan..." />
+          <div class="search-dropdown" id="searchDropdown"></div>
+        </div>
+        <button class="icon-btn" id="refreshBtn" title="Muat ulang data"><i class="fa-solid fa-rotate"></i></button>
+      </div>
+    </header>
+
+    <main class="content" id="content">
+
+      <!-- ===== DASHBOARD ===== -->
+      <section class="page active" id="page-dashboard">
+        <div class="school-profile-bar" id="schoolProfileBar" style="display:none">
+          <div class="school-profile-logo" id="schoolProfileLogoWrap">
+            <img id="schoolProfileLogo" src="" alt="Logo Sekolah" style="display:none" />
+            <i class="fa-solid fa-school" id="schoolProfileLogoIcon"></i>
+          </div>
+          <div class="school-profile-text">
+            <div class="school-profile-name" id="schoolProfileName">Nama Sekolah</div>
+            <div class="school-profile-year" id="schoolProfileYear">Tahun Pelajaran</div>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card stat-card--primary">
+            <div class="stat-icon"><i class="fa-solid fa-user-graduate"></i></div>
+            <div><div class="stat-value" id="statSiswa">0</div><div class="stat-label">Total Siswa</div></div>
+          </div>
+          <div class="stat-card stat-card--amber">
+            <div class="stat-icon"><i class="fa-solid fa-calendar-xmark"></i></div>
+            <div><div class="stat-value" id="statAlpa">0</div><div class="stat-label">Alpa Bulan Ini</div></div>
+          </div>
+          <div class="stat-card stat-card--danger">
+            <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div><div class="stat-value" id="statPelanggaran">0</div><div class="stat-label">Pelanggaran Bulan Ini</div></div>
+          </div>
+          <div class="stat-card stat-card--success">
+            <div class="stat-icon"><i class="fa-solid fa-comments"></i></div>
+            <div><div class="stat-value" id="statKonseling">0</div><div class="stat-label">Sesi Konseling Bulan Ini</div></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h3>Tren Pelanggaran &amp; Absensi (6 Bulan)</h3></div>
+            <canvas id="chartTrend" height="220"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Jenis Pelanggaran Terbanyak</h3></div>
+            <canvas id="chartPelanggaran" height="220"></canvas>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h3>Status Kehadiran</h3></div>
+            <canvas id="chartAbsensi" height="220"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Aktivitas Terbaru</h3></div>
+            <ul class="activity-list" id="activityList"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== DATA SISWA ===== -->
+      <section class="page" id="page-siswa">
+        <div class="toolbar">
+          <div class="filter-group">
+            <select id="filterKelasSiswa" class="select"><option value="">Semua Kelas</option></select>
+          </div>
+          <div class="filter-group">
+            <button class="btn btn-ghost" id="btnDownloadTemplate" title="Unduh template Excel untuk diisi"><i class="fa-solid fa-file-arrow-down"></i> Template Excel</button>
+            <button class="btn btn-ghost" id="btnImportSiswa" title="Upload data siswa dari file Excel"><i class="fa-solid fa-file-arrow-up"></i> Import Excel</button>
+            <input type="file" id="importSiswaFile" accept=".xlsx,.xls" class="hidden" />
+            <button class="btn btn-primary" id="btnAddSiswa"><i class="fa-solid fa-plus"></i> Tambah Siswa</button>
+          </div>
+        </div>
+        <p class="muted import-note">Import Excel hanya <b>menambahkan siswa baru</b> (dicocokkan lewat NIS) — data siswa yang sudah tersimpan tidak akan berubah atau tertimpa. Input manual tetap bisa dipakai kapan saja.</p>
+        <div class="card table-card">
+          <div class="table-wrap">
+            <table class="table" id="tableSiswa">
+              <thead><tr><th>NIS</th><th>Nama</th><th>Kelas</th><th>L/P</th><th>Orang Tua</th><th>No. HP Ortu</th><th>Status</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="empty-state" style="display:none"><i class="fa-solid fa-user-graduate"></i><p>Belum ada data siswa. Klik "Tambah Siswa" untuk mulai.</p></div>
+        </div>
+      </section>
+
+      <!-- ===== ABSENSI ===== -->
+      <section class="page" id="page-absensi">
+        <div class="toolbar">
+          <div class="filter-group">
+            <input type="date" id="filterTglAbsensi" class="select" />
+            <select id="filterKelasAbsensi" class="select"><option value="">Semua Kelas</option></select>
+            <select id="filterStatusAbsensi" class="select">
+              <option value="">Semua Status</option>
+              <option value="Hadir">Hadir</option><option value="Sakit">Sakit</option>
+              <option value="Izin">Izin</option><option value="Alpa">Alpa</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <button class="btn btn-ghost" id="btnBulkAbsensi"><i class="fa-solid fa-square-check"></i> Absen Massal per Kelas</button>
+            <button class="btn btn-primary" id="btnAddAbsensi"><i class="fa-solid fa-plus"></i> Catat Absensi</button>
+          </div>
+        </div>
+        <div class="card"><canvas id="chartAbsensiPage" height="90"></canvas></div>
+        <div class="card table-card">
+          <div class="table-wrap">
+            <table class="table" id="tableAbsensi">
+              <thead><tr><th>Tanggal</th><th>Nama</th><th>Kelas</th><th>Status</th><th>Keterangan</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="empty-state" style="display:none"><i class="fa-solid fa-calendar-check"></i><p>Belum ada data absensi.</p></div>
+        </div>
+      </section>
+
+      <!-- ===== PELANGGARAN ===== -->
+      <section class="page" id="page-pelanggaran">
+        <div class="toolbar">
+          <div class="filter-group">
+            <select id="filterKelasPelanggaran" class="select"><option value="">Semua Kelas</option></select>
+            <input type="month" id="filterBulanPelanggaran" class="select" />
+          </div>
+          <div class="filter-group">
+            <button class="btn btn-ghost" id="btnMasterPelanggaran"><i class="fa-solid fa-list-check"></i> Template Pelanggaran</button>
+            <button class="btn btn-primary" id="btnAddPelanggaran"><i class="fa-solid fa-plus"></i> Catat Pelanggaran</button>
+          </div>
+        </div>
+        <div class="card table-card">
+          <div class="table-wrap">
+            <table class="table" id="tablePelanggaran">
+              <thead><tr><th>Tanggal</th><th>Nama</th><th>Kelas</th><th>Jenis</th><th>Poin</th><th>Penanganan</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="empty-state" style="display:none"><i class="fa-solid fa-triangle-exclamation"></i><p>Belum ada data pelanggaran.</p></div>
+        </div>
+      </section>
+
+      <!-- ===== KONSELING ===== -->
+      <section class="page" id="page-konseling">
+        <div class="toolbar">
+          <div class="filter-group">
+            <select id="filterKelasKonseling" class="select"><option value="">Semua Kelas</option></select>
+          </div>
+          <button class="btn btn-primary" id="btnAddKonseling"><i class="fa-solid fa-plus"></i> Catat Sesi Konseling</button>
+        </div>
+        <div class="card-list" id="listKonseling"></div>
+        <div class="empty-state" id="emptyKonseling" style="display:none"><i class="fa-solid fa-comments"></i><p>Belum ada catatan konseling.</p></div>
+      </section>
+
+      <!-- ===== KOLABORASI ===== -->
+      <section class="page" id="page-kolaborasi">
+        <div class="toolbar">
+          <div class="filter-group">
+            <select id="filterJenisKolaborasi" class="select">
+              <option value="">Semua Jenis</option>
+              <option value="Pemanggilan Orang Tua">Pemanggilan Orang Tua</option>
+              <option value="Home Visit">Home Visit</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="btnAddKolaborasi"><i class="fa-solid fa-plus"></i> Catat Kolaborasi</button>
+        </div>
+        <div class="card-list" id="listKolaborasi"></div>
+        <div class="empty-state" id="emptyKolaborasi" style="display:none"><i class="fa-solid fa-people-arrows"></i><p>Belum ada catatan kolaborasi.</p></div>
+      </section>
+
+      <!-- ===== LAPORAN ===== -->
+      <section class="page" id="page-laporan">
+        <div class="card">
+          <div class="card-head"><h3>Cetak Laporan</h3></div>
+          <p class="muted">Pilih jenis laporan dan rentang data, lalu cetak sebagai PDF (gunakan dialog cetak browser, pilih "Save as PDF").</p>
+          <div class="form-grid">
+            <div class="field">
+              <label>Jenis Laporan</label>
+              <select id="reportType" class="select select--full">
+                <option value="siswa">Data Siswa</option>
+                <option value="absensi">Rekap Absensi</option>
+                <option value="pelanggaran">Rekap Pelanggaran</option>
+                <option value="konseling">Rekap Konseling</option>
+                <option value="pemanggilan_ortu">Rekap Pemanggilan Orang Tua</option>
+                <option value="home_visit">Rekap Home Visit</option>
+                <option value="individu">Laporan Per Siswa (Individu)</option>
+                <option value="siswa_lulus">Siswa Lulus (Alumni)</option>
+              </select>
+            </div>
+            <div class="field hidden" id="reportAbsensiViewField">
+              <label>Bentuk Rekap Absensi</label>
+              <select id="reportAbsensiView" class="select select--full">
+                <option value="grid">Grid Bulanan (format buku absensi)</option>
+                <option value="siswa">Rekap per Siswa (per anak)</option>
+                <option value="kelas">Rekap per Kelas</option>
+                <option value="bulan">Rekap per Bulan</option>
+                <option value="rincian">Rincian Harian (daftar catatan)</option>
+              </select>
+            </div>
+            <div class="field" id="reportKelasField">
+              <label>Kelas (opsional)</label>
+              <select id="reportKelas" class="select select--full"><option value="">Semua Kelas</option></select>
+            </div>
+            <div class="field hidden" id="reportTahunLulusField">
+              <label>Tahun Lulus</label>
+              <select id="reportTahunLulus" class="select select--full"><option value="">Semua Tahun Lulus</option></select>
+            </div>
+            <div class="field hidden" id="reportSiswaField">
+              <label>Pilih Siswa</label>
+              <select id="reportSiswa" class="select select--full"><option value="">Pilih siswa...</option></select>
+            </div>
+            <div class="field" id="reportPeriodeField">
+              <label>Periode</label>
+              <select id="reportPeriode" class="select select--full">
+                <option value="">Semua Tanggal</option>
+                <option value="harian">Harian</option>
+                <option value="bulanan">Bulanan</option>
+                <option value="semester">Semester</option>
+              </select>
+            </div>
+            <div class="field hidden" id="reportTanggalField">
+              <label>Pilih Tanggal</label>
+              <input type="date" id="reportTanggal" class="select select--full" />
+            </div>
+            <div class="field hidden" id="reportBulanField">
+              <label>Pilih Bulan</label>
+              <input type="month" id="reportBulan" class="select select--full" />
+            </div>
+            <div class="field hidden" id="reportSemesterField">
+              <label>Semester</label>
+              <select id="reportSemester" class="select select--full">
+                <option value="ganjil">Ganjil (Jul–Des)</option>
+                <option value="genap">Genap (Jan–Jun)</option>
+              </select>
+            </div>
+            <div class="field hidden" id="reportTahunAjaranField">
+              <label>Tahun Pelajaran</label>
+              <input type="text" id="reportTahunAjaran" class="select select--full" placeholder="Contoh: 2025/2026" />
+            </div>
+          </div>
+          <label class="checkbox-pill" id="reportRekapKelasWrap" style="margin-top:4px">
+            <input type="checkbox" id="reportRekapKelas" checked />
+            <span>Tampilkan rekap ringkas per kelas</span>
+          </label>
+          <button class="btn btn-primary" id="btnGenerateReport" style="margin-top:14px"><i class="fa-solid fa-file-pdf"></i> Buat &amp; Cetak Laporan</button>
+        </div>
+        <div class="card" id="reportPreviewCard" style="display:none">
+          <div id="reportPreview" class="report-preview"></div>
+        </div>
+      </section>
+
+      <!-- ===== KENAIKAN & KELULUSAN ===== -->
+      <section class="page" id="page-kenaikan">
+        <div class="card">
+          <div class="card-head"><h3>Kenaikan Kelas</h3></div>
+          <p class="muted">Pindahkan siswa terpilih dari Kelas Asal ke Kelas Tujuan sekaligus (contoh: siswa kelas VII-A naik ke VIII-A). Riwayat Absensi, Pelanggaran, Konseling, dan Kolaborasi yang sudah tercatat tidak ikut berubah.</p>
+          <div class="form-grid">
+            <div class="field">
+              <label>Kelas Asal</label>
+              <select id="naikKelasAsal" class="select select--full"><option value="">Pilih kelas...</option></select>
+            </div>
+            <div class="field">
+              <label>Kelas Tujuan</label>
+              <select id="naikKelasTujuan" class="select select--full"><option value="">Pilih kelas...</option></select>
+            </div>
+          </div>
+          <div class="bulk-list-head">
+            <label class="checkbox-pill"><input type="checkbox" id="naikCheckAll" /> Pilih Semua</label>
+            <span class="muted" id="naikCount">Pilih kelas dahulu untuk menampilkan daftar siswa.</span>
+          </div>
+          <div class="bulk-siswa-list" id="naikSiswaList"></div>
+          <button class="btn btn-primary" id="btnNaikkanKelas" style="margin-top:14px"><i class="fa-solid fa-arrow-up"></i> Naikkan Kelas Siswa Terpilih</button>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Kelulusan</h3></div>
+          <p class="muted">Luluskan siswa kelas akhir yang benar-benar sudah lulus. Siswa yang diluluskan akan dikeluarkan dari Data Siswa dan otomatis masuk ke <b>Laporan &gt; Siswa Lulus (Alumni)</b> — riwayat Absensi, Pelanggaran, Konseling, dan Kolaborasi yang sudah tercatat tetap tersimpan sebagai arsip.</p>
+          <div class="form-grid">
+            <div class="field">
+              <label>Kelas</label>
+              <select id="lulusKelas" class="select select--full"><option value="">Pilih kelas...</option></select>
+            </div>
+            <div class="field">
+              <label>Tahun Kelulusan</label>
+              <input type="text" id="lulusTahun" class="select select--full" placeholder="Contoh: 2025/2026" />
+            </div>
+          </div>
+          <div class="bulk-list-head">
+            <label class="checkbox-pill"><input type="checkbox" id="lulusCheckAll" /> Kelulusan Massal (pilih semua)</label>
+            <span class="muted" id="lulusCount">Pilih kelas dahulu untuk menampilkan daftar siswa.</span>
+          </div>
+          <div class="bulk-siswa-list" id="lulusSiswaList"></div>
+          <button class="btn btn-danger" id="btnLuluskan" style="margin-top:14px"><i class="fa-solid fa-graduation-cap"></i> Luluskan Siswa Terpilih</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ---------- MOBILE BOTTOM NAV ---------- -->
+  <nav class="bottom-nav" id="bottomNav">
+    <a href="#dashboard" class="bn-item active" data-page="dashboard"><i class="fa-solid fa-chart-simple"></i><span>Dashboard</span></a>
+    <a href="#siswa" class="bn-item" data-page="siswa"><i class="fa-solid fa-user-graduate"></i><span>Siswa</span></a>
+    <a href="#absensi" class="bn-item" data-page="absensi"><i class="fa-solid fa-calendar-check"></i><span>Absensi</span></a>
+    <a href="#pelanggaran" class="bn-item" data-page="pelanggaran"><i class="fa-solid fa-triangle-exclamation"></i><span>Pelanggaran</span></a>
+    <a href="#more" class="bn-item" id="bnMore"><i class="fa-solid fa-ellipsis"></i><span>Lainnya</span></a>
+  </nav>
+  <div class="more-sheet" id="moreSheet">
+    <div class="more-sheet-inner">
+      <a href="#konseling" class="nav-item" data-page="konseling"><i class="fa-solid fa-comments"></i><span>Konseling</span></a>
+      <a href="#kolaborasi" class="nav-item" data-page="kolaborasi"><i class="fa-solid fa-people-arrows"></i><span>Kolaborasi</span></a>
+      <a href="#laporan" class="nav-item" data-page="laporan"><i class="fa-solid fa-file-pdf"></i><span>Laporan</span></a>
+      <a href="#kenaikan" class="nav-item" data-page="kenaikan"><i class="fa-solid fa-arrow-up-right-dots"></i><span>Kenaikan &amp; Kelulusan</span></a>
+      <button class="nav-item nav-item--ghost" id="guruAccountsBtnMobile"><i class="fa-solid fa-users-gear"></i><span>Akun Guru Mapel</span></button>
+      <button class="nav-item nav-item--ghost" id="konselorAccountsBtnMobile"><i class="fa-solid fa-user-shield"></i><span>Akun Guru BK (Konselor)</span></button>
+      <button class="nav-item nav-item--ghost" id="settingsBtnMobile"><i class="fa-solid fa-gear"></i><span>Pengaturan</span></button>
+      <button class="nav-item nav-item--ghost hidden" id="logoutBtnMobile"><i class="fa-solid fa-right-from-bracket"></i><span>Keluar</span></button>
+    </div>
+  </div>
+  <div class="sheet-backdrop" id="sheetBackdrop"></div>
+</div>
+
+<!-- ============ MODAL (generic form) ============ -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">Form</h3>
+      <button class="icon-btn" id="modalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" id="toast"></div>
+
+<!-- ============ IMAGE LIGHTBOX (perbesar foto, tidak buka tab baru) ============ -->
+<div class="lightbox-backdrop" id="lightboxBackdrop">
+  <div class="lightbox-toolbar">
+    <button type="button" id="lightboxZoomOut" title="Perkecil"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+    <button type="button" id="lightboxZoomIn" title="Perbesar"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+    <button type="button" id="lightboxReset" title="Reset ukuran"><i class="fa-solid fa-arrows-rotate"></i></button>
+    <button type="button" id="lightboxClose" title="Tutup"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="lightbox-stage" id="lightboxStage">
+    <img id="lightboxImg" src="" alt="Bukti foto" />
+  </div>
+</div>
+
+<!-- ============ LOADING OVERLAY ============ -->
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="pwa.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
